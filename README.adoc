@@ -1,0 +1,88 @@
+= Test case for an issue with vim-repeat/vim-surround
+
+== Repository contents
+
+* A minimal `init.vim` that maps `dp` to a function which makes it repeatable,
+  following the advice in the
+  https://www.vikasraj.dev/blog/vim-dot-repeat[Dot-Repeat in Vim and Neovim]
+  blog post (with snippets in both Lua and Vim Script).
+* The plugins `vim-repeat` and `vim-surround` as submodules, at their latest
+  version (as of the creating of this repository).
+* Two text files to be opened with `vi -d original.txt changed.txt`, to easily
+  test the plugins and the mapping.
+
+== To setup
+
+You can probably copy the snippet in the `init.vim` from this repository to your
+config, and reproduce the issue still. If you only have a Lua init file, this
+should be equivalent as your `init.lua`:
+
+[source,lua]
+----
+Init = {} -- Just a global to hold the function to be called from Vim Script
+
+local function make_repeatable(from, function_name, function_body)
+    Init[function_name] = function(motion)
+        if motion == nil then
+            vim.o.operatorfunc = 'v:lua.Init.' .. function_name
+            return 'g@l'
+        end
+        function_body()
+    end
+    vim.keymap.set('n', from, Init[function_name], { expr = true })
+end
+
+make_repeatable('dp', 'diff_put', function()
+    vim.cmd('normal! dp')
+end)
+----
+
+Instead of adding to your config, I recommend the `NVIM_APPNAME` trick to make
+sure no other plugin or setting in it is the culprit (for a while, I was only
+able to reproduce the problem if the `vim-grepper` plugin was enabled in my
+settings, because it uses `vim-repeat`, so I think it is important to make a
+minimal test case like this). I've narrowed it down to only the
+configuration/plugins provided here.
+
+To use this repository as your config without changing your regular one:
+
+. Clone the repository under `~/.config/nvimtest/`.
+. `export NVIM_APPNAME='nvimtest`.
+
+Now your configuration is untouched, but you'll use this test case only.
+
+On Vim (not NeoVim), I've just had to move away my config and use this repo
+instead, as I have not found a more convenient way.
+
+== To reproduce
+
+. `vi -d original.txt changed.txt`.
+. Try the following to *not* trigger the issue, but confirm that `dp` is
+  repeatable:
+.. `]c` to go to the first change.
+.. `dp` to put the first change.
+.. Now, dot-repeat for the other two changes: `]c.]c.` (the `.` repeats `dp` as
+   desired).
+. Try the following to *do reproduce* the issue, by using `vim-surround`, which
+  activates `vim-repeat` and remaps `.`:
+.. `]c` to go to the first change.
+.. Use `cs"'` to change the quotes of the first change.
+.. `dp` to put the first change.
+.. Now, move to the second change, and repeat: `]c.`. This repeats `cs"'` not
+   `dp`.
+.. Do `dp` again. It works, but it's still not repeatable. `]c.` still does
+   `cs"'`, not `dp`.
+
+== Workarounds
+
+* Unmap `.`. Works, but then `vim-surround` or other plugins that use
+  `vim-repeat` won't be repeatable.
+* Uninstall `vim-repeat`. Same.
+* Implement the `dp` mapping by using `vim-repeat`, like this: `nnoremap
+  <silent> dp dp:silent! call repeat#set('dp', v:count)<Enter>`. This works, but
+  has problems:
+. Rewriting the mapping from other plugins or making them "opt-in" into
+  `vim-repeat` if available might not be an option.
+. Plugin-less setups (e.g. like for root user, where extra plugins might not be
+  an option).
+
