@@ -3,19 +3,40 @@
 == Repository contents
 
 * A minimal `init.vim` that maps `dp` to a function which makes it repeatable,
-  following the advice in the
+  using the implementation provided in the
   https://www.vikasraj.dev/blog/vim-dot-repeat[Dot-Repeat in Vim and Neovim]
-  blog post (with snippets in both Lua and Vim Script).
+  blog post (which thankfully provides snippets in both Lua and Vim Script).
 * The plugins `vim-repeat` and `vim-surround` as submodules, at their latest
-  version (as of the creating of this repository).
+  version (as of the creating of this repository). Checked out in `pack`.
 * Two text files to be opened with `vi -d original.txt changed.txt`, to easily
   test the plugins and the mapping.
 
-== To setup
+== Minimal setup to reproduce the problem
 
-You can probably copy the snippet in the `init.vim` from this repository to your
-config, and reproduce the issue still. If you only have a Lua init file, this
-should be equivalent as your `init.lua`:
+I have placed everything in the repository for easy testing with Vim or Neovim
+in an isolated environment. I recommend that to make sure no other plugin or
+custom setting is the culprit (because, for a while, I was triggering the
+problem inconsistently, as other plugins can make use of `vim-repeat`, and I
+suspected that another plugin might be the issue, so I think it is important to
+make a minimal test case like this). I've narrowed it down to only the
+configuration/plugins provided here.
+
+The `NVIM_APPNAME` feature from Neovim is the most convenient:
+
+. `export NVIM_APPNAME='nvimtest`.
+. Clone the repository as `~/.config/nvimtest`.
+
+Of course, `nvimtest` is just an example, use what you like.
+
+For testing with Vim, move away your `~/.vim` directory and use this repository
+in its place:
+
+. `mv ~/.vim ~/.vim.saved`
+. Clone the repository as `~/.vim`.
+
+If you are in a hurry, perhaps you can copy the snippet in the `init.vim` from
+this repository to your config, and reproduce the issue still. If you only have
+a Lua init file, this should be equivalent if added to your `init.lua`:
 
 [source,lua]
 ----
@@ -37,24 +58,11 @@ make_repeatable('dp', 'diff_put', function()
 end)
 ----
 
-Instead of adding to your config, I recommend the `NVIM_APPNAME` trick to make
-sure no other plugin or setting in it is the culprit (for a while, I was only
-able to reproduce the problem if the `vim-grepper` plugin was enabled in my
-settings, because it uses `vim-repeat`, so I think it is important to make a
-minimal test case like this). I've narrowed it down to only the
-configuration/plugins provided here.
+I have been able to reproduce the issue on Vim 8.2, Vim 9.1 Neovim 0.9 and
+0.10.
 
-To use this repository as your config without changing your regular one:
 
-. Clone the repository under `~/.config/nvimtest/`.
-. `export NVIM_APPNAME='nvimtest`.
-
-Now your configuration is untouched, but you'll use this test case only.
-
-On Vim (not NeoVim), I've just had to move away my config and use this repo
-instead, as I have not found a more convenient way.
-
-== To reproduce
+== Instructions to reproduce the issue after setup
 
 . `vi -d original.txt changed.txt`.
 . Try the following to *not* trigger the issue, but confirm that `dp` is
@@ -79,10 +87,6 @@ instead, as I have not found a more convenient way.
   `vim-repeat` won't be repeatable.
 * Uninstall `vim-repeat`. Same.
 * Implement the `dp` mapping by using `vim-repeat`, like this: `nnoremap
-  <silent> dp dp:silent! call repeat#set('dp', v:count)<Enter>`. This works, but
-  has problems:
-. Rewriting the mapping from other plugins or making them "opt-in" into
-  `vim-repeat` if available might not be an option.
-. Plugin-less setups (e.g. like for root user, where extra plugins might not be
-  an option).
-
+  <silent> dp dp:silent! call repeat#set('dp', v:count)<Enter>`. This works for
+  one's own maping, but rewriting the mapping from third party plugins or making
+  them "opt-in" into `vim-repeat` if available might not be an option.
